@@ -383,11 +383,13 @@
   });
 
   // Save list
-  $("#list-modal-save").addEventListener("click", function () {
+  var listSaveBtn = $("#list-modal-save");
+  listSaveBtn.addEventListener("click", function () {
     if (isSaving) return;
     var name = listNameInput.value.trim();
     if (!name) return;
     isSaving = true;
+    listSaveBtn.disabled = true;
 
     var user = Auth.getCurrentUser();
 
@@ -420,6 +422,7 @@
 
     closeModal(listModal);
     editingListId = null;
+    listSaveBtn.disabled = false;
     isSaving = false;
   });
 
@@ -448,7 +451,8 @@
   });
 
   // Save item
-  $("#item-modal-save").addEventListener("click", function () {
+  var itemSaveBtn = $("#item-modal-save");
+  itemSaveBtn.addEventListener("click", function () {
     if (isSaving) return;
     var name = itemNameInput.value.trim();
     var date = itemDateInput.value;
@@ -456,9 +460,10 @@
     if (!name) return;
     if (!isFinite(amount)) amount = 0;
     isSaving = true;
+    itemSaveBtn.disabled = true;
 
     var list = getList(currentListId);
-    if (!list) { isSaving = false; return; }
+    if (!list) { isSaving = false; itemSaveBtn.disabled = false; return; }
 
     if (editingItemId) {
       var item = list.items.find(function (i) { return i.id === editingItemId; });
@@ -480,6 +485,7 @@
     saveItemChange();
     closeModal(itemModal);
     editingItemId = null;
+    itemSaveBtn.disabled = false;
     isSaving = false;
   });
 

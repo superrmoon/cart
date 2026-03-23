@@ -59,7 +59,10 @@ var DB = (function () {
         items: list.items || [],
       },
       { merge: true }
-    );
+    ).catch(function (err) {
+      console.error("Firestore save error:", err);
+      alert("저장에 실패했습니다. 네트워크를 확인해 주세요.");
+    });
   }
 
   // Delete a list document
@@ -69,7 +72,11 @@ var DB = (function () {
       .doc(uid)
       .collection("lists")
       .doc(listId)
-      .delete();
+      .delete()
+      .catch(function (err) {
+        console.error("Firestore delete error:", err);
+        alert("삭제에 실패했습니다. 네트워크를 확인해 주세요.");
+      });
   }
 
   // Migrate localStorage data to Firestore (first login)

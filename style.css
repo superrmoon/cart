@@ -3,6 +3,13 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 :root {
@@ -365,6 +372,11 @@ ul {
 
 .btn:active {
   opacity: 0.8;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Auth Button */
