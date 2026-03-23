@@ -4,7 +4,7 @@ var Auth = (function () {
 
   var auth = firebase.auth();
   var GOOGLE_CLIENT_ID = "421516237009-0pv522qit1rukoagtorrqv7nce0lc7l3.apps.googleusercontent.com";
-  var REDIRECT_URI = window.location.origin + window.location.pathname;
+  var REDIRECT_URI = "https://superrmoon.github.io/cart/";
 
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
