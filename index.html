@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Shopping">
+  <meta name="theme-color" content="#2c3e50">
+  <title>Shopping List</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+  <!-- List View -->
+  <div id="list-view" class="view active">
+    <header>
+      <h1>Shopping List</h1>
+      <button id="add-list-btn" class="btn-icon" aria-label="Add list">+</button>
+    </header>
+    <ul id="lists-container"></ul>
+    <div id="empty-lists" class="empty-state">
+      <p>목록이 없습니다</p>
+      <p class="hint">+ 버튼으로 새 목록을 추가하세요</p>
+    </div>
+  </div>
+
+  <!-- Item View -->
+  <div id="item-view" class="view">
+    <header>
+      <button id="back-btn" class="btn-icon" aria-label="Back">&larr;</button>
+      <h1 id="item-view-title"></h1>
+      <button id="add-item-btn" class="btn-icon" aria-label="Add item">+</button>
+    </header>
+    <div id="item-summary">
+      <span id="total-amount">0원</span>
+      <label class="toggle-label">
+        <input type="checkbox" id="hide-completed">
+        <span>완료 숨김</span>
+      </label>
+    </div>
+    <ul id="items-container"></ul>
+    <div id="empty-items" class="empty-state">
+      <p>품목이 없습니다</p>
+      <p class="hint">+ 버튼으로 품목을 추가하세요</p>
+    </div>
+  </div>
+
+  <!-- Add/Edit List Modal -->
+  <div id="list-modal" class="modal">
+    <div class="modal-content">
+      <h2 id="list-modal-title">새 목록</h2>
+      <input type="text" id="list-name-input" placeholder="목록 이름" autocomplete="off">
+      <div class="modal-actions">
+        <button id="list-modal-cancel" class="btn btn-cancel">취소</button>
+        <button id="list-modal-save" class="btn btn-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Item Modal -->
+  <div id="item-modal" class="modal">
+    <div class="modal-content">
+      <h2 id="item-modal-title">품목 추가</h2>
+      <input type="text" id="item-name-input" placeholder="품목명" autocomplete="off">
+      <input type="date" id="item-date-input">
+      <input type="number" id="item-amount-input" placeholder="금액 (원)" inputmode="numeric">
+      <div class="modal-actions">
+        <button id="item-modal-cancel" class="btn btn-cancel">취소</button>
+        <button id="item-modal-save" class="btn btn-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div id="confirm-modal" class="modal">
+    <div class="modal-content">
+      <p id="confirm-message"></p>
+      <div class="modal-actions">
+        <button id="confirm-cancel" class="btn btn-cancel">취소</button>
+        <button id="confirm-ok" class="btn btn-danger">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
