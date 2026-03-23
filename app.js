@@ -84,6 +84,7 @@
   var editingItemId = null;
   var confirmCallback = null;
   var isLoggedIn = false;
+  var isSaving = false;
 
   // ---- DOM ----
   var $ = function (sel) { return document.querySelector(sel); };
@@ -383,8 +384,10 @@
 
   // Save list
   $("#list-modal-save").addEventListener("click", function () {
+    if (isSaving) return;
     var name = listNameInput.value.trim();
     if (!name) return;
+    isSaving = true;
 
     var user = Auth.getCurrentUser();
 
@@ -394,7 +397,6 @@
 
       if (user) {
         DB.saveList(user.uid, list);
-        // onSnapshot will update UI
       } else {
         saveLocal(data);
         renderLists();
@@ -408,7 +410,6 @@
       };
 
       if (user) {
-        // Write to Firestore only - onSnapshot will update data and UI
         DB.saveList(user.uid, newList);
       } else {
         data.lists.push(newList);
@@ -419,6 +420,7 @@
 
     closeModal(listModal);
     editingListId = null;
+    isSaving = false;
   });
 
   // Cancel list modal
@@ -447,13 +449,15 @@
 
   // Save item
   $("#item-modal-save").addEventListener("click", function () {
+    if (isSaving) return;
     var name = itemNameInput.value.trim();
     var date = itemDateInput.value;
     var amount = Number(itemAmountInput.value) || 0;
     if (!name) return;
+    isSaving = true;
 
     var list = getList(currentListId);
-    if (!list) return;
+    if (!list) { isSaving = false; return; }
 
     if (editingItemId) {
       var item = list.items.find(function (i) { return i.id === editingItemId; });
@@ -475,6 +479,7 @@
     saveItemChange();
     closeModal(itemModal);
     editingItemId = null;
+    isSaving = false;
   });
 
   // Cancel item modal
