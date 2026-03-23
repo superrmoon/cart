@@ -16,6 +16,17 @@ var Auth = (function () {
     var params = new URLSearchParams(hash.substring(1));
     var accessToken = params.get("access_token");
 
+    // Verify state parameter (CSRF protection)
+    var returnedState = params.get("state");
+    var savedState = sessionStorage.getItem("oauth_state");
+    sessionStorage.removeItem("oauth_state");
+
+    if (!returnedState || returnedState !== savedState) {
+      console.error("OAuth state mismatch - possible CSRF attack");
+      history.replaceState(null, "", window.location.pathname);
+      return;
+    }
+
     // Clean URL hash
     history.replaceState(null, "", window.location.pathname);
 
@@ -31,13 +42,17 @@ var Auth = (function () {
   _handleRedirectCallback();
 
   function signIn() {
-    // Direct redirect to Google OAuth (works on all browsers including iOS Safari)
+    // Generate random state for CSRF protection
+    var state = Math.random().toString(36).substring(2, 15);
+    sessionStorage.setItem("oauth_state", state);
+
     var authUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
       "?client_id=" + encodeURIComponent(GOOGLE_CLIENT_ID) +
       "&redirect_uri=" + encodeURIComponent(REDIRECT_URI) +
       "&response_type=token" +
       "&scope=openid%20email%20profile" +
-      "&prompt=select_account";
+      "&prompt=select_account" +
+      "&state=" + encodeURIComponent(state);
 
     window.location.href = authUrl;
   }

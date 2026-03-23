@@ -30,6 +30,9 @@ var DB = (function () {
         },
         function (error) {
           console.error("Firestore listener error:", error);
+          if (error.code === "permission-denied") {
+            alert("데이터 접근 권한이 없습니다. 다시 로그인해 주세요.");
+          }
         }
       );
   }

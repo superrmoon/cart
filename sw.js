@@ -1,5 +1,6 @@
-var CACHE_NAME = "cart-v3";
+var CACHE_NAME = "cart-v4";
 var ASSETS = [
+  "./index.html",
   "./style.css",
   "./app.js",
   "./firebase-config.js",
@@ -10,7 +11,7 @@ var ASSETS = [
   "./icons/icon-512.png",
 ];
 
-// Install: cache assets (excluding index.html)
+// Install: cache all assets
 self.addEventListener("install", function (event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
@@ -38,7 +39,7 @@ self.addEventListener("activate", function (event) {
 self.addEventListener("fetch", function (event) {
   var url = event.request.url;
 
-  // Skip all Firebase/Google API calls
+  // Skip Firebase/Google API calls
   if (
     url.includes("googleapis.com") ||
     url.includes("firestore.googleapis.com") ||
@@ -51,7 +52,7 @@ self.addEventListener("fetch", function (event) {
     return;
   }
 
-  // index.html: network-first (important for auth redirect)
+  // Navigation requests (HTML): network-first for auth redirect support
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(function () {

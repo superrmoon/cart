@@ -452,8 +452,9 @@
     if (isSaving) return;
     var name = itemNameInput.value.trim();
     var date = itemDateInput.value;
-    var amount = Number(itemAmountInput.value) || 0;
+    var amount = Math.max(0, Math.floor(Number(itemAmountInput.value) || 0));
     if (!name) return;
+    if (!isFinite(amount)) amount = 0;
     isSaving = true;
 
     var list = getList(currentListId);
