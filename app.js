@@ -7,7 +7,6 @@
 
   // ---- Storage ----
   var STORAGE_KEY = "shopping-list-data";
-  var _changedListId = null;
 
   function loadData() {
     try {
@@ -18,18 +17,37 @@
     }
   }
 
-  function saveData(d) {
-    // Always save to localStorage (offline fallback)
+  function saveLocal(d) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  }
 
-    // If logged in, also save changed list to Firestore
+  // Save list to Firestore (logged in) or localStorage (logged out)
+  function saveListChange(listId) {
     var user = Auth.getCurrentUser();
-    if (user && _changedListId) {
-      var list = d.lists.find(function (l) { return l.id === _changedListId; });
+    if (user) {
+      var list = getList(listId);
       if (list) {
         DB.saveList(user.uid, list);
       }
-      _changedListId = null;
+      // Don't renderLists here - onSnapshot will handle it
+    } else {
+      saveLocal(data);
+      renderLists();
+      if (currentListId) renderItems();
+    }
+  }
+
+  function saveItemChange() {
+    var user = Auth.getCurrentUser();
+    if (user && currentListId) {
+      var list = getList(currentListId);
+      if (list) {
+        DB.saveList(user.uid, list);
+      }
+      // Don't renderItems here - onSnapshot will handle it
+    } else {
+      saveLocal(data);
+      if (currentListId) renderItems();
     }
   }
 
@@ -272,16 +290,15 @@
     var list = getList(id);
     if (!list) return;
     showConfirm("'" + list.name + "' 목록을 삭제하시겠습니까?", function () {
-      data.lists = data.lists.filter(function (l) { return l.id !== id; });
-      saveData(data);
-
-      // Delete from Firestore
       var user = Auth.getCurrentUser();
       if (user) {
+        // Firestore delete - onSnapshot will update UI
         DB.deleteList(user.uid, id);
+      } else {
+        data.lists = data.lists.filter(function (l) { return l.id !== id; });
+        saveLocal(data);
+        renderLists();
       }
-
-      renderLists();
     });
   }
 
@@ -292,9 +309,7 @@
     var item = list.items.find(function (i) { return i.id === id; });
     if (!item) return;
     item.completed = !item.completed;
-    _changedListId = currentListId;
-    saveData(data);
-    renderItems();
+    saveItemChange();
   }
 
   function openEditItemModal(id) {
@@ -316,9 +331,7 @@
       var list = getList(currentListId);
       if (!list) return;
       list.items = list.items.filter(function (i) { return i.id !== id; });
-      _changedListId = currentListId;
-      saveData(data);
-      renderItems();
+      saveItemChange();
     });
   }
 
@@ -373,24 +386,39 @@
     var name = listNameInput.value.trim();
     if (!name) return;
 
+    var user = Auth.getCurrentUser();
+
     if (editingListId) {
       var list = getList(editingListId);
       if (list) list.name = name;
-      _changedListId = editingListId;
+
+      if (user) {
+        DB.saveList(user.uid, list);
+        // onSnapshot will update UI
+      } else {
+        saveLocal(data);
+        renderLists();
+      }
     } else {
-      var newId = uuid();
-      data.lists.push({
-        id: newId,
+      var newList = {
+        id: uuid(),
         name: name,
         createdAt: todayStr(),
         items: [],
-      });
-      _changedListId = newId;
+      };
+
+      if (user) {
+        // Write to Firestore only - onSnapshot will update data and UI
+        DB.saveList(user.uid, newList);
+      } else {
+        data.lists.push(newList);
+        saveLocal(data);
+        renderLists();
+      }
     }
-    saveData(data);
+
     closeModal(listModal);
     editingListId = null;
-    renderLists();
   });
 
   // Cancel list modal
@@ -443,11 +471,10 @@
         completed: false,
       });
     }
-    _changedListId = currentListId;
-    saveData(data);
+
+    saveItemChange();
     closeModal(itemModal);
     editingItemId = null;
-    renderItems();
   });
 
   // Cancel item modal
@@ -513,7 +540,7 @@
       // Attach real-time Firestore listener
       DB.attachListener(user.uid, function (remoteData) {
         data = remoteData;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        saveLocal(data);
         renderLists();
         if (currentListId) renderItems();
       });
