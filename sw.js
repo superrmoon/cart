@@ -1,6 +1,5 @@
-var CACHE_NAME = "cart-v2";
+var CACHE_NAME = "cart-v3";
 var ASSETS = [
-  "./index.html",
   "./style.css",
   "./app.js",
   "./firebase-config.js",
@@ -11,7 +10,7 @@ var ASSETS = [
   "./icons/icon-512.png",
 ];
 
-// Install: cache all assets
+// Install: cache assets (excluding index.html)
 self.addEventListener("install", function (event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
@@ -35,21 +34,34 @@ self.addEventListener("activate", function (event) {
   self.clients.claim();
 });
 
-// Fetch: cache-first for app assets, skip Firebase API calls
+// Fetch handler
 self.addEventListener("fetch", function (event) {
   var url = event.request.url;
 
-  // Let browser handle Firebase/Google API calls directly
+  // Skip all Firebase/Google API calls
   if (
     url.includes("googleapis.com") ||
     url.includes("firestore.googleapis.com") ||
     url.includes("identitytoolkit") ||
     url.includes("securetoken") ||
-    url.includes("gstatic.com/firebasejs")
+    url.includes("gstatic.com/firebasejs") ||
+    url.includes("firebaseapp.com") ||
+    url.includes("accounts.google.com")
   ) {
     return;
   }
 
+  // index.html: network-first (important for auth redirect)
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(function () {
+        return caches.match("./index.html");
+      })
+    );
+    return;
+  }
+
+  // Other assets: cache-first
   event.respondWith(
     caches.match(event.request).then(function (cached) {
       return cached || fetch(event.request);
