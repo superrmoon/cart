@@ -1,24 +1,36 @@
 // ============================================================
-// Shopping List PWA - App Logic
+// Cart PWA - App Logic
 // ============================================================
 
 (function () {
   "use strict";
 
   // ---- Storage ----
-  const STORAGE_KEY = "shopping-list-data";
+  var STORAGE_KEY = "shopping-list-data";
+  var _changedListId = null;
 
   function loadData() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : { lists: [] };
-    } catch {
+    } catch (e) {
       return { lists: [] };
     }
   }
 
-  function saveData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  function saveData(d) {
+    // Always save to localStorage (offline fallback)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+
+    // If logged in, also save changed list to Firestore
+    var user = Auth.getCurrentUser();
+    if (user && _changedListId) {
+      var list = d.lists.find(function (l) { return l.id === _changedListId; });
+      if (list) {
+        DB.saveList(user.uid, list);
+      }
+      _changedListId = null;
+    }
   }
 
   // ---- UUID ----
@@ -33,61 +45,67 @@
 
   function formatDate(dateStr) {
     if (!dateStr) return "";
-    const d = new Date(dateStr + "T00:00:00");
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
+    var d = new Date(dateStr + "T00:00:00");
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
     return m + "-" + day;
   }
 
   function todayStr() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
     return y + "-" + m + "-" + day;
   }
 
   // ---- State ----
-  let data = loadData();
-  let currentListId = null;
-  let editingListId = null;
-  let editingItemId = null;
-  let confirmCallback = null;
+  var data = loadData();
+  var currentListId = null;
+  var editingListId = null;
+  var editingItemId = null;
+  var confirmCallback = null;
+  var isLoggedIn = false;
 
   // ---- DOM ----
-  const $ = (sel) => document.querySelector(sel);
+  var $ = function (sel) { return document.querySelector(sel); };
 
-  const listView = $("#list-view");
-  const itemView = $("#item-view");
-  const listsContainer = $("#lists-container");
-  const itemsContainer = $("#items-container");
-  const emptyLists = $("#empty-lists");
-  const emptyItems = $("#empty-items");
-  const totalAmountEl = $("#total-amount");
-  const hideCompletedCb = $("#hide-completed");
-  const itemViewTitle = $("#item-view-title");
+  var listView = $("#list-view");
+  var itemView = $("#item-view");
+  var listsContainer = $("#lists-container");
+  var itemsContainer = $("#items-container");
+  var emptyLists = $("#empty-lists");
+  var emptyItems = $("#empty-items");
+  var totalAmountEl = $("#total-amount");
+  var hideCompletedCb = $("#hide-completed");
+  var itemViewTitle = $("#item-view-title");
+
+  // Auth UI
+  var authBtn = $("#auth-btn");
+  var authText = $("#auth-text");
+  var authPhoto = $("#auth-photo");
 
   // Modals
-  const listModal = $("#list-modal");
-  const listModalTitle = $("#list-modal-title");
-  const listNameInput = $("#list-name-input");
-  const itemModal = $("#item-modal");
-  const itemModalTitle = $("#item-modal-title");
-  const itemNameInput = $("#item-name-input");
-  const itemDateInput = $("#item-date-input");
-  const itemAmountInput = $("#item-amount-input");
-  const confirmModal = $("#confirm-modal");
-  const confirmMessage = $("#confirm-message");
+  var listModal = $("#list-modal");
+  var listModalTitle = $("#list-modal-title");
+  var listNameInput = $("#list-name-input");
+  var itemModal = $("#item-modal");
+  var itemModalTitle = $("#item-modal-title");
+  var itemNameInput = $("#item-name-input");
+  var itemDateInput = $("#item-date-input");
+  var itemAmountInput = $("#item-amount-input");
+  var confirmModal = $("#confirm-modal");
+  var confirmMessage = $("#confirm-message");
 
   // ---- Helpers ----
   function getList(id) {
-    return data.lists.find((l) => l.id === id);
+    return data.lists.find(function (l) { return l.id === id; });
   }
 
   function listTotal(list) {
     return list.items
-      .filter((item) => !item.completed)
-      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      .filter(function (item) { return !item.completed; })
+      .reduce(function (sum, item) { return sum + (Number(item.amount) || 0); }, 0);
   }
 
   // ---- Views ----
@@ -95,6 +113,27 @@
     listView.classList.remove("active");
     itemView.classList.remove("active");
     view.classList.add("active");
+  }
+
+  // ---- Auth UI ----
+  function updateAuthUI(user) {
+    if (user) {
+      isLoggedIn = true;
+      authText.style.display = "none";
+      authPhoto.src = user.photoURL || "";
+      authPhoto.style.display = user.photoURL ? "block" : "none";
+      if (!user.photoURL) {
+        authText.textContent = user.displayName ? user.displayName.charAt(0) : "?";
+        authText.style.display = "block";
+        authText.classList.add("auth-initial");
+      }
+    } else {
+      isLoggedIn = false;
+      authText.textContent = "로그인";
+      authText.style.display = "block";
+      authText.classList.remove("auth-initial");
+      authPhoto.style.display = "none";
+    }
   }
 
   // ---- Render Lists ----
@@ -107,13 +146,13 @@
     }
     emptyLists.style.display = "none";
 
-    data.lists.forEach((list) => {
-      const li = document.createElement("li");
+    data.lists.forEach(function (list) {
+      var li = document.createElement("li");
       li.className = "list-item";
 
-      const total = listTotal(list);
-      const activeCount = list.items.filter((i) => !i.completed).length;
-      const totalCount = list.items.length;
+      var total = listTotal(list);
+      var activeCount = list.items.filter(function (i) { return !i.completed; }).length;
+      var totalCount = list.items.length;
 
       li.innerHTML =
         '<div class="list-item-info">' +
@@ -127,8 +166,7 @@
         "</div>" +
         '<span class="list-item-arrow">&rsaquo;</span>';
 
-      // Tap on list item (not buttons) -> open items
-      li.addEventListener("click", (e) => {
+      li.addEventListener("click", function (e) {
         if (e.target.closest(".list-item-actions")) return;
         openList(list.id);
       });
@@ -136,16 +174,15 @@
       listsContainer.appendChild(li);
     });
 
-    // Edit / Delete buttons
-    listsContainer.querySelectorAll(".btn-edit-list").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+    listsContainer.querySelectorAll(".btn-edit-list").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
         e.stopPropagation();
         openEditListModal(btn.dataset.id);
       });
     });
 
-    listsContainer.querySelectorAll(".btn-delete-list").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+    listsContainer.querySelectorAll(".btn-delete-list").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
         e.stopPropagation();
         deleteList(btn.dataset.id);
       });
@@ -154,18 +191,18 @@
 
   // ---- Render Items ----
   function renderItems() {
-    const list = getList(currentListId);
+    var list = getList(currentListId);
     if (!list) return;
 
     itemViewTitle.textContent = list.name;
     itemsContainer.innerHTML = "";
 
-    const hideCompleted = hideCompletedCb.checked;
-    const visibleItems = hideCompleted
-      ? list.items.filter((i) => !i.completed)
+    var hideCompleted = hideCompletedCb.checked;
+    var visibleItems = hideCompleted
+      ? list.items.filter(function (i) { return !i.completed; })
       : list.items;
 
-    const total = listTotal(list);
+    var total = listTotal(list);
     totalAmountEl.textContent = formatAmount(total);
 
     if (visibleItems.length === 0) {
@@ -174,8 +211,8 @@
     }
     emptyItems.style.display = "none";
 
-    visibleItems.forEach((item) => {
-      const li = document.createElement("li");
+    visibleItems.forEach(function (item) {
+      var li = document.createElement("li");
       li.className = "shop-item" + (item.completed ? " completed" : "");
 
       li.innerHTML =
@@ -195,23 +232,20 @@
       itemsContainer.appendChild(li);
     });
 
-    // Checkbox
-    itemsContainer.querySelectorAll(".shop-item-checkbox").forEach((cb) => {
-      cb.addEventListener("change", () => {
+    itemsContainer.querySelectorAll(".shop-item-checkbox").forEach(function (cb) {
+      cb.addEventListener("change", function () {
         toggleItem(cb.dataset.id);
       });
     });
 
-    // Edit
-    itemsContainer.querySelectorAll(".btn-edit-item").forEach((btn) => {
-      btn.addEventListener("click", () => {
+    itemsContainer.querySelectorAll(".btn-edit-item").forEach(function (btn) {
+      btn.addEventListener("click", function () {
         openEditItemModal(btn.dataset.id);
       });
     });
 
-    // Delete
-    itemsContainer.querySelectorAll(".btn-delete-item").forEach((btn) => {
-      btn.addEventListener("click", () => {
+    itemsContainer.querySelectorAll(".btn-delete-item").forEach(function (btn) {
+      btn.addEventListener("click", function () {
         deleteItem(btn.dataset.id);
       });
     });
@@ -225,7 +259,7 @@
   }
 
   function openEditListModal(id) {
-    const list = getList(id);
+    var list = getList(id);
     if (!list) return;
     editingListId = id;
     listModalTitle.textContent = "목록 수정";
@@ -235,30 +269,38 @@
   }
 
   function deleteList(id) {
-    const list = getList(id);
+    var list = getList(id);
     if (!list) return;
-    showConfirm("'" + list.name + "' 목록을 삭제하시겠습니까?", () => {
-      data.lists = data.lists.filter((l) => l.id !== id);
+    showConfirm("'" + list.name + "' 목록을 삭제하시겠습니까?", function () {
+      data.lists = data.lists.filter(function (l) { return l.id !== id; });
       saveData(data);
+
+      // Delete from Firestore
+      var user = Auth.getCurrentUser();
+      if (user) {
+        DB.deleteList(user.uid, id);
+      }
+
       renderLists();
     });
   }
 
   // ---- Item Actions ----
   function toggleItem(id) {
-    const list = getList(currentListId);
+    var list = getList(currentListId);
     if (!list) return;
-    const item = list.items.find((i) => i.id === id);
+    var item = list.items.find(function (i) { return i.id === id; });
     if (!item) return;
     item.completed = !item.completed;
+    _changedListId = currentListId;
     saveData(data);
     renderItems();
   }
 
   function openEditItemModal(id) {
-    const list = getList(currentListId);
+    var list = getList(currentListId);
     if (!list) return;
-    const item = list.items.find((i) => i.id === id);
+    var item = list.items.find(function (i) { return i.id === id; });
     if (!item) return;
     editingItemId = id;
     itemModalTitle.textContent = "품목 수정";
@@ -270,10 +312,11 @@
   }
 
   function deleteItem(id) {
-    showConfirm("이 품목을 삭제하시겠습니까?", () => {
-      const list = getList(currentListId);
+    showConfirm("이 품목을 삭제하시겠습니까?", function () {
+      var list = getList(currentListId);
       if (!list) return;
-      list.items = list.items.filter((i) => i.id !== id);
+      list.items = list.items.filter(function (i) { return i.id !== id; });
+      _changedListId = currentListId;
       saveData(data);
       renderItems();
     });
@@ -296,7 +339,7 @@
 
   // ---- Escape HTML ----
   function escapeHtml(str) {
-    const div = document.createElement("div");
+    var div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
   }
@@ -305,8 +348,19 @@
   // Event Listeners
   // ============================================================
 
+  // Auth button
+  authBtn.addEventListener("click", function () {
+    if (isLoggedIn) {
+      showConfirm("로그아웃 하시겠습니까?", function () {
+        Auth.signOut();
+      });
+    } else {
+      Auth.signIn();
+    }
+  });
+
   // Add list button
-  $("#add-list-btn").addEventListener("click", () => {
+  $("#add-list-btn").addEventListener("click", function () {
     editingListId = null;
     listModalTitle.textContent = "새 목록";
     listNameInput.value = "";
@@ -315,20 +369,23 @@
   });
 
   // Save list
-  $("#list-modal-save").addEventListener("click", () => {
-    const name = listNameInput.value.trim();
+  $("#list-modal-save").addEventListener("click", function () {
+    var name = listNameInput.value.trim();
     if (!name) return;
 
     if (editingListId) {
-      const list = getList(editingListId);
+      var list = getList(editingListId);
       if (list) list.name = name;
+      _changedListId = editingListId;
     } else {
+      var newId = uuid();
       data.lists.push({
-        id: uuid(),
+        id: newId,
         name: name,
         createdAt: todayStr(),
         items: [],
       });
+      _changedListId = newId;
     }
     saveData(data);
     closeModal(listModal);
@@ -337,20 +394,20 @@
   });
 
   // Cancel list modal
-  $("#list-modal-cancel").addEventListener("click", () => {
+  $("#list-modal-cancel").addEventListener("click", function () {
     closeModal(listModal);
     editingListId = null;
   });
 
   // Back button
-  $("#back-btn").addEventListener("click", () => {
+  $("#back-btn").addEventListener("click", function () {
     currentListId = null;
     showView(listView);
     renderLists();
   });
 
   // Add item button
-  $("#add-item-btn").addEventListener("click", () => {
+  $("#add-item-btn").addEventListener("click", function () {
     editingItemId = null;
     itemModalTitle.textContent = "품목 추가";
     itemNameInput.value = "";
@@ -361,17 +418,17 @@
   });
 
   // Save item
-  $("#item-modal-save").addEventListener("click", () => {
-    const name = itemNameInput.value.trim();
-    const date = itemDateInput.value;
-    const amount = Number(itemAmountInput.value) || 0;
+  $("#item-modal-save").addEventListener("click", function () {
+    var name = itemNameInput.value.trim();
+    var date = itemDateInput.value;
+    var amount = Number(itemAmountInput.value) || 0;
     if (!name) return;
 
-    const list = getList(currentListId);
+    var list = getList(currentListId);
     if (!list) return;
 
     if (editingItemId) {
-      const item = list.items.find((i) => i.id === editingItemId);
+      var item = list.items.find(function (i) { return i.id === editingItemId; });
       if (item) {
         item.name = name;
         item.date = date;
@@ -386,6 +443,7 @@
         completed: false,
       });
     }
+    _changedListId = currentListId;
     saveData(data);
     closeModal(itemModal);
     editingItemId = null;
@@ -393,13 +451,13 @@
   });
 
   // Cancel item modal
-  $("#item-modal-cancel").addEventListener("click", () => {
+  $("#item-modal-cancel").addEventListener("click", function () {
     closeModal(itemModal);
     editingItemId = null;
   });
 
   // Confirm OK
-  $("#confirm-ok").addEventListener("click", () => {
+  $("#confirm-ok").addEventListener("click", function () {
     closeModal(confirmModal);
     if (confirmCallback) {
       confirmCallback();
@@ -408,19 +466,19 @@
   });
 
   // Confirm Cancel
-  $("#confirm-cancel").addEventListener("click", () => {
+  $("#confirm-cancel").addEventListener("click", function () {
     closeModal(confirmModal);
     confirmCallback = null;
   });
 
   // Hide completed toggle
-  hideCompletedCb.addEventListener("change", () => {
+  hideCompletedCb.addEventListener("change", function () {
     renderItems();
   });
 
   // Close modals on backdrop click
-  [listModal, itemModal, confirmModal].forEach((modal) => {
-    modal.addEventListener("click", (e) => {
+  [listModal, itemModal, confirmModal].forEach(function (modal) {
+    modal.addEventListener("click", function (e) {
       if (e.target === modal) {
         closeModal(modal);
         editingListId = null;
@@ -431,17 +489,44 @@
   });
 
   // Enter key in modals
-  listNameInput.addEventListener("keydown", (e) => {
+  listNameInput.addEventListener("keydown", function (e) {
     if (e.key === "Enter") $("#list-modal-save").click();
   });
 
-  itemAmountInput.addEventListener("keydown", (e) => {
+  itemAmountInput.addEventListener("keydown", function (e) {
     if (e.key === "Enter") $("#item-modal-save").click();
+  });
+
+  // ============================================================
+  // Firebase Auth State Listener
+  // ============================================================
+  Auth.onAuthChanged(function (user) {
+    updateAuthUI(user);
+
+    if (user) {
+      // Migrate localStorage data to Firestore on first login
+      var localData = loadData();
+      if (localData.lists.length > 0) {
+        DB.migrateFromLocal(user.uid, localData);
+      }
+
+      // Attach real-time Firestore listener
+      DB.attachListener(user.uid, function (remoteData) {
+        data = remoteData;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        renderLists();
+        if (currentListId) renderItems();
+      });
+    } else {
+      DB.detachListener();
+      data = loadData();
+      renderLists();
+    }
   });
 
   // ---- Register Service Worker ----
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js").catch(function () {});
   }
 
   // ---- Init ----

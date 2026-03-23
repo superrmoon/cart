@@ -1,7 +1,7 @@
 {
-  "name": "Shopping List",
-  "short_name": "Shopping",
-  "description": "Simple shopping list app",
+  "name": "Cart",
+  "short_name": "Cart",
+  "description": "Simple shopping cart app with sync",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f5f6fa",
