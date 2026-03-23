@@ -5,14 +5,16 @@ var Auth = (function () {
   var auth = firebase.auth();
   var provider = new firebase.auth.GoogleAuthProvider();
 
-  // Ensure auth state persists across sessions
+  // Ensure auth state persists in IndexedDB (works with Safari ITP)
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
   function signIn() {
-    // Always use popup - redirect has issues with Safari ITP
-    return auth.signInWithPopup(provider).catch(function (err) {
-      console.error("Sign in error:", err.code, err.message);
-    });
+    // Mobile: always use redirect (popup opens new tab on iOS, breaks auth flow)
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      return auth.signInWithRedirect(provider);
+    }
+    // Desktop: popup
+    return auth.signInWithPopup(provider);
   }
 
   function signOut() {
@@ -20,6 +22,19 @@ var Auth = (function () {
   }
 
   function onAuthChanged(callback) {
+    // First check redirect result, then listen for auth state changes
+    auth.getRedirectResult().then(function (result) {
+      // Redirect sign-in completed successfully
+      if (result && result.user) {
+        callback(result.user);
+      }
+    }).catch(function (err) {
+      if (err.code !== "auth/credential-already-in-use") {
+        console.error("Redirect auth error:", err.code);
+      }
+    });
+
+    // Also listen for auth state changes (handles persistent login)
     auth.onAuthStateChanged(callback);
   }
 
