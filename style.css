@@ -417,3 +417,89 @@ ul {
   font-size: 14px;
   font-weight: 600;
 }
+
+/* Settings Modal */
+.settings-content {
+  max-width: 380px;
+}
+
+.settings-desc {
+  font-size: 13px !important;
+  color: var(--text-light);
+  margin-bottom: 12px !important;
+}
+
+.token-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.token-value {
+  flex: 1;
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--text);
+}
+
+.token-usage {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.token-usage-title {
+  font-size: 13px !important;
+  font-weight: 600;
+  margin-bottom: 6px !important;
+  color: var(--text);
+}
+
+.token-usage code {
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--text-light);
+  font-family: monospace;
+  line-height: 1.4;
+  display: block;
+}
+
+/* API Result View */
+.api-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  flex: 1;
+}
+
+.api-result-success {
+  font-size: 48px;
+  color: var(--success);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.api-result-error {
+  font-size: 48px;
+  color: var(--danger);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.api-result p {
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.api-result .btn {
+  max-width: 200px;
+}

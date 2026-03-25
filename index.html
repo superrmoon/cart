@@ -23,6 +23,7 @@
           <img id="auth-photo" src="" alt="" style="display:none;">
         </button>
       </div>
+      <button id="settings-btn" class="btn-icon btn-settings" aria-label="Settings" style="display:none;font-size:18px;">&#9881;</button>
       <button id="add-list-btn" class="btn-icon" aria-label="Add list">+</button>
     </header>
     <ul id="lists-container"></ul>
@@ -75,6 +76,35 @@
       <div class="modal-actions">
         <button id="item-modal-cancel" class="btn btn-cancel">취소</button>
         <button id="item-modal-save" class="btn btn-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Result View (shown when adding via URL) -->
+  <div id="api-result-view" class="view">
+    <header>
+      <h1>Cart</h1>
+    </header>
+    <div id="api-result" class="api-result">
+      <div id="api-result-icon"></div>
+      <p id="api-result-message"></p>
+      <button id="api-result-open" class="btn btn-save" style="margin-top:16px;">앱 열기</button>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal">
+    <div class="modal-content settings-content">
+      <h2>API 토큰 설정</h2>
+      <p class="settings-desc">토큰을 사용하면 URL로 항목을 추가할 수 있습니다.</p>
+      <div id="token-list"></div>
+      <button id="generate-token-btn" class="btn btn-save" style="width:100%;margin-top:12px;">토큰 생성</button>
+      <div id="token-usage" class="token-usage">
+        <p class="token-usage-title">사용법</p>
+        <code id="token-usage-url">...?token=TOKEN&action=add&list=목록명&name=품목명&amount=금액</code>
+      </div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button id="settings-close" class="btn btn-cancel" style="flex:1;">닫기</button>
       </div>
     </div>
   </div>

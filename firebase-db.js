@@ -116,11 +116,116 @@ var DB = (function () {
       });
   }
 
+  // ---- Token Management ----
+
+  // Generate a random 32-char token
+  function _randomToken() {
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    var result = "";
+    for (var i = 0; i < 32; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  // Create a new API token for the user
+  function generateToken(uid) {
+    var token = _randomToken();
+    var batch = db.batch();
+
+    // Save to user's token subcollection
+    var userTokenRef = db.collection("users").doc(uid).collection("tokens").doc();
+    batch.set(userTokenRef, {
+      token: token,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Save to global tokens collection (for fast lookup)
+    var globalTokenRef = db.collection("tokens").doc(token);
+    batch.set(globalTokenRef, {
+      uid: uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return batch.commit().then(function () {
+      return token;
+    });
+  }
+
+  // Get all tokens for a user
+  function getTokens(uid) {
+    return db.collection("users").doc(uid).collection("tokens")
+      .orderBy("createdAt", "desc")
+      .get()
+      .then(function (snapshot) {
+        var tokens = [];
+        snapshot.forEach(function (doc) {
+          tokens.push({ id: doc.id, token: doc.data().token, createdAt: doc.data().createdAt });
+        });
+        return tokens;
+      });
+  }
+
+  // Delete a token
+  function deleteToken(uid, tokenId, tokenValue) {
+    var batch = db.batch();
+    batch.delete(db.collection("users").doc(uid).collection("tokens").doc(tokenId));
+    batch.delete(db.collection("tokens").doc(tokenValue));
+    return batch.commit();
+  }
+
+  // Find user UID by token
+  function findUserByToken(token) {
+    return db.collection("tokens").doc(token).get().then(function (doc) {
+      if (!doc.exists) return null;
+      return doc.data().uid;
+    });
+  }
+
+  // Add item to a list via token (no auth required)
+  function addItemByToken(uid, listName, item) {
+    return db.collection("users").doc(uid).collection("lists")
+      .where("name", "==", listName)
+      .limit(1)
+      .get()
+      .then(function (snapshot) {
+        if (!snapshot.empty) {
+          // List exists: add item to it
+          var doc = snapshot.docs[0];
+          var data = doc.data();
+          var items = data.items || [];
+          items.push(item);
+          return doc.ref.update({
+            items: items,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+        } else {
+          // List doesn't exist: create it
+          var newListId = Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+          var d = new Date();
+          var createdAt = d.getFullYear() + "-" +
+            String(d.getMonth() + 1).padStart(2, "0") + "-" +
+            String(d.getDate()).padStart(2, "0");
+          return db.collection("users").doc(uid).collection("lists").doc(newListId).set({
+            name: listName,
+            createdAt: createdAt,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            items: [item],
+          });
+        }
+      });
+  }
+
   return {
     attachListener: attachListener,
     detachListener: detachListener,
     saveList: saveList,
     deleteList: deleteList,
     migrateFromLocal: migrateFromLocal,
+    generateToken: generateToken,
+    getTokens: getTokens,
+    deleteToken: deleteToken,
+    findUserByToken: findUserByToken,
+    addItemByToken: addItemByToken,
   };
 })();

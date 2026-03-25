@@ -541,6 +541,7 @@
   // ============================================================
   Auth.onAuthChanged(function (user) {
     updateAuthUI(user);
+    updateSettingsBtn(user);
 
     if (user) {
       // Migrate localStorage data to Firestore on first login
@@ -563,11 +564,186 @@
     }
   });
 
+  // ============================================================
+  // API Token Settings
+  // ============================================================
+  var settingsBtn = $("#settings-btn");
+  var settingsModal = $("#settings-modal");
+  var tokenListEl = $("#token-list");
+  var generateTokenBtn = $("#generate-token-btn");
+  var tokenUsageUrl = $("#token-usage-url");
+
+  // Show settings button only when logged in
+  function updateSettingsBtn(user) {
+    settingsBtn.style.display = user ? "flex" : "none";
+  }
+
+  settingsBtn.addEventListener("click", function () {
+    openSettingsModal();
+  });
+
+  function openSettingsModal() {
+    var user = Auth.getCurrentUser();
+    if (!user) return;
+
+    tokenListEl.innerHTML = '<p style="color:var(--text-light);font-size:13px;">로딩 중...</p>';
+    openModal(settingsModal);
+
+    DB.getTokens(user.uid).then(function (tokens) {
+      tokenListEl.innerHTML = "";
+      if (tokens.length === 0) {
+        tokenListEl.innerHTML = '<p style="color:var(--text-light);font-size:13px;">생성된 토큰이 없습니다.</p>';
+      } else {
+        tokens.forEach(function (t) {
+          var div = document.createElement("div");
+          div.className = "token-item";
+          div.innerHTML =
+            '<code class="token-value">' + t.token.substring(0, 8) + "..." + "</code>" +
+            '<button class="btn-small btn-copy-token" data-token="' + escapeHtml(t.token) + '" title="복사">&#128203;</button>' +
+            '<button class="btn-small btn-delete-token" data-id="' + t.id + '" data-token="' + escapeHtml(t.token) + '" title="삭제">&#10005;</button>';
+          tokenListEl.appendChild(div);
+        });
+
+        tokenListEl.querySelectorAll(".btn-copy-token").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var token = btn.dataset.token;
+            var url = window.location.origin + window.location.pathname +
+              "?token=" + token + "&action=add&list=목록명&name=품목명&amount=0";
+            navigator.clipboard.writeText(url).then(function () {
+              btn.textContent = "OK";
+              setTimeout(function () { btn.innerHTML = "&#128203;"; }, 1500);
+            });
+          });
+        });
+
+        tokenListEl.querySelectorAll(".btn-delete-token").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var user = Auth.getCurrentUser();
+            if (!user) return;
+            DB.deleteToken(user.uid, btn.dataset.id, btn.dataset.token).then(function () {
+              openSettingsModal();
+            });
+          });
+        });
+
+        // Update usage URL with first token
+        tokenUsageUrl.textContent = window.location.origin + window.location.pathname +
+          "?token=" + tokens[0].token + "&action=add&list=목록명&name=품목명&amount=금액";
+      }
+    });
+  }
+
+  generateTokenBtn.addEventListener("click", function () {
+    var user = Auth.getCurrentUser();
+    if (!user) return;
+    generateTokenBtn.disabled = true;
+    generateTokenBtn.textContent = "생성 중...";
+
+    DB.generateToken(user.uid).then(function () {
+      generateTokenBtn.disabled = false;
+      generateTokenBtn.textContent = "토큰 생성";
+      openSettingsModal();
+    }).catch(function () {
+      generateTokenBtn.disabled = false;
+      generateTokenBtn.textContent = "토큰 생성";
+      alert("토큰 생성에 실패했습니다.");
+    });
+  });
+
+  $("#settings-close").addEventListener("click", function () {
+    closeModal(settingsModal);
+  });
+
+  settingsModal.addEventListener("click", function (e) {
+    if (e.target === settingsModal) closeModal(settingsModal);
+  });
+
+  // ============================================================
+  // URL API Handler
+  // ============================================================
+  function handleUrlApi() {
+    var params = new URLSearchParams(window.location.search);
+    var action = params.get("action");
+    var token = params.get("token");
+
+    if (action !== "add" || !token) return false;
+
+    var listName = params.get("list");
+    var itemName = params.get("name");
+    var amount = Math.max(0, Math.floor(Number(params.get("amount")) || 0));
+    var date = params.get("date") || todayStr();
+
+    if (!listName || !itemName) {
+      showApiResult(false, "필수 파라미터가 없습니다. (list, name)");
+      return true;
+    }
+
+    // Show API result view
+    var apiResultView = $("#api-result-view");
+    var apiResultIcon = $("#api-result-icon");
+    var apiResultMsg = $("#api-result-message");
+
+    listView.classList.remove("active");
+    apiResultView.classList.add("active");
+    apiResultIcon.textContent = "...";
+    apiResultMsg.textContent = "처리 중...";
+
+    // Clean URL
+    history.replaceState(null, "", window.location.pathname);
+
+    // Find user by token and add item
+    DB.findUserByToken(token).then(function (uid) {
+      if (!uid) {
+        showApiResult(false, "유효하지 않은 토큰입니다.");
+        return;
+      }
+
+      var item = {
+        id: uuid(),
+        name: itemName,
+        date: date,
+        amount: amount,
+        completed: false,
+      };
+
+      return DB.addItemByToken(uid, listName, item).then(function () {
+        showApiResult(true, "'" + listName + "'에 '" + itemName + "' 추가 완료 (" + formatAmount(amount) + ")");
+      });
+    }).catch(function (err) {
+      console.error("API error:", err);
+      showApiResult(false, "항목 추가에 실패했습니다.");
+    });
+
+    return true;
+  }
+
+  function showApiResult(success, message) {
+    var apiResultView = $("#api-result-view");
+    var apiResultIcon = $("#api-result-icon");
+    var apiResultMsg = $("#api-result-message");
+
+    listView.classList.remove("active");
+    apiResultView.classList.add("active");
+    apiResultIcon.textContent = success ? "O" : "X";
+    apiResultIcon.className = success ? "api-result-success" : "api-result-error";
+    apiResultMsg.textContent = message;
+  }
+
+  $("#api-result-open").addEventListener("click", function () {
+    var apiResultView = $("#api-result-view");
+    apiResultView.classList.remove("active");
+    listView.classList.add("active");
+    renderLists();
+  });
+
   // ---- Register Service Worker ----
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(function () {});
   }
 
   // ---- Init ----
-  renderLists();
+  var isApiCall = handleUrlApi();
+  if (!isApiCall) {
+    renderLists();
+  }
 })();
