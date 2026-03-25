@@ -477,7 +477,6 @@ ul {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  flex: 1;
 }
 
 .api-result-success {
@@ -502,4 +501,6 @@ ul {
 
 .api-result .btn {
   max-width: 200px;
+  width: 200px;
+  flex: none;
 }
