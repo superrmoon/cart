@@ -18,13 +18,22 @@ service cloud.firestore {
                          && request.auth.uid == userId;
     }
 
-    // Global tokens: anyone can read (for token lookup), authenticated users can write their own
+    // Global tokens: anyone can read, authenticated users can write their own
     match /tokens/{tokenId} {
       allow read: if true;
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid;
       allow delete: if request.auth != null
                     && resource.data.uid == request.auth.uid;
+    }
+
+    // API inbox: anyone can create if valid token exists
+    match /api_inbox/{docId} {
+      allow create: if request.resource.data.token is string
+                    && exists(/databases/$(database)/documents/tokens/$(request.resource.data.token));
+      // Authenticated user can read/delete their own inbox items
+      allow read, delete: if request.auth != null
+                          && resource.data.uid == request.auth.uid;
     }
   }
 }

@@ -182,25 +182,58 @@ var DB = (function () {
     });
   }
 
-  // Add item to a list via token (no auth required)
-  function addItemByToken(uid, listName, item) {
+  // Add item via token: write to inbox (no auth required)
+  function addItemToInbox(token, uid, listName, item) {
+    return db.collection("api_inbox").add({
+      token: token,
+      uid: uid,
+      listName: listName,
+      item: item,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Process inbox items for logged-in user
+  function processInbox(uid) {
+    return db.collection("api_inbox")
+      .where("uid", "==", uid)
+      .get()
+      .then(function (snapshot) {
+        if (snapshot.empty) return Promise.resolve(0);
+
+        var processed = 0;
+        var promises = [];
+
+        snapshot.forEach(function (inboxDoc) {
+          var data = inboxDoc.data();
+          var promise = _addItemToList(uid, data.listName, data.item)
+            .then(function () {
+              return inboxDoc.ref.delete();
+            })
+            .then(function () { processed++; });
+          promises.push(promise);
+        });
+
+        return Promise.all(promises).then(function () { return processed; });
+      });
+  }
+
+  // Internal: add item to a user's list
+  function _addItemToList(uid, listName, item) {
     return db.collection("users").doc(uid).collection("lists")
       .where("name", "==", listName)
       .limit(1)
       .get()
       .then(function (snapshot) {
         if (!snapshot.empty) {
-          // List exists: add item to it
           var doc = snapshot.docs[0];
-          var data = doc.data();
-          var items = data.items || [];
+          var items = doc.data().items || [];
           items.push(item);
           return doc.ref.update({
             items: items,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
         } else {
-          // List doesn't exist: create it
           var newListId = Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
           var d = new Date();
           var createdAt = d.getFullYear() + "-" +
@@ -226,6 +259,7 @@ var DB = (function () {
     getTokens: getTokens,
     deleteToken: deleteToken,
     findUserByToken: findUserByToken,
-    addItemByToken: addItemByToken,
+    addItemToInbox: addItemToInbox,
+    processInbox: processInbox,
   };
 })();

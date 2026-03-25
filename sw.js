@@ -1,4 +1,4 @@
-var CACHE_NAME = "cart-v7";
+var CACHE_NAME = "cart-v8";
 var ASSETS = [
   "./index.html",
   "./style.css",

@@ -550,6 +550,11 @@
         DB.migrateFromLocal(user.uid, localData);
       }
 
+      // Process any pending inbox items
+      DB.processInbox(user.uid).then(function (count) {
+        if (count > 0) console.log("Processed " + count + " inbox items");
+      });
+
       // Attach real-time Firestore listener
       DB.attachListener(user.uid, function (remoteData) {
         data = remoteData;
@@ -706,8 +711,8 @@
         completed: false,
       };
 
-      return DB.addItemByToken(uid, listName, item).then(function () {
-        showApiResult(true, "'" + listName + "'에 '" + itemName + "' 추가 완료 (" + formatAmount(amount) + ")");
+      return DB.addItemToInbox(token, uid, listName, item).then(function () {
+        showApiResult(true, "'" + listName + "'에 '" + itemName + "' 추가 예약 완료 (" + formatAmount(amount) + ")");
       });
     }).catch(function (err) {
       console.error("API error:", err);
