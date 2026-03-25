@@ -716,7 +716,7 @@
       });
     }).catch(function (err) {
       console.error("API error:", err);
-      showApiResult(false, "항목 추가에 실패했습니다.");
+      showApiResult(false, "실패: " + (err.code || "") + " " + (err.message || err));
     });
 
     return true;
