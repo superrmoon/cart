@@ -696,8 +696,15 @@
     // Clean URL
     history.replaceState(null, "", window.location.pathname);
 
-    // Find user by token and add item
-    DB.findUserByToken(token).then(function (uid) {
+    // Wait for Firestore to be ready, then find user by token and add item
+    var timeout = new Promise(function (_, reject) {
+      setTimeout(function () { reject(new Error("시간 초과 (10초)")); }, 10000);
+    });
+
+    Promise.race([
+      firestoreReady.then(function () { return DB.findUserByToken(token); }),
+      timeout
+    ]).then(function (uid) {
       if (!uid) {
         showApiResult(false, "유효하지 않은 토큰입니다.");
         return;

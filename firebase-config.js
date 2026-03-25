@@ -10,14 +10,18 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-// Enable Firestore offline persistence
-firebase
-  .firestore()
-  .enablePersistence({ synchronizeTabs: true })
-  .catch(function (err) {
-    if (err.code === "failed-precondition") {
-      console.warn("Firestore persistence failed: multiple tabs open");
-    } else if (err.code === "unimplemented") {
-      console.warn("Firestore persistence not supported");
-    }
-  });
+// Skip persistence for API calls (URL with ?action=), enable for normal use
+var _isApiCall = window.location.search.includes("action=");
+
+var firestoreReady = _isApiCall
+  ? Promise.resolve()
+  : firebase
+      .firestore()
+      .enablePersistence({ synchronizeTabs: true })
+      .catch(function (err) {
+        if (err.code === "failed-precondition") {
+          console.warn("Firestore persistence failed: multiple tabs open");
+        } else if (err.code === "unimplemented") {
+          console.warn("Firestore persistence not supported");
+        }
+      });
