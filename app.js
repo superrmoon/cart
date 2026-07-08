@@ -7,6 +7,7 @@
 
   // ---- Storage ----
   var STORAGE_KEY = "shopping-list-data";
+  var HIDE_COMPLETED_KEY = "cart-hide-completed";
 
   function loadData() {
     try {
@@ -510,8 +511,11 @@
     confirmCallback = null;
   });
 
-  // Hide completed toggle
+  // Hide completed toggle - persist preference across sessions
   hideCompletedCb.addEventListener("change", function () {
+    try {
+      localStorage.setItem(HIDE_COMPLETED_KEY, hideCompletedCb.checked ? "1" : "0");
+    } catch (e) {}
     renderItems();
   });
 
@@ -754,6 +758,11 @@
   }
 
   // ---- Init ----
+  // Restore hide-completed preference
+  try {
+    hideCompletedCb.checked = localStorage.getItem(HIDE_COMPLETED_KEY) === "1";
+  } catch (e) {}
+
   var isApiCall = handleUrlApi();
   if (!isApiCall) {
     renderLists();
