@@ -262,6 +262,10 @@ ul {
   white-space: nowrap;
 }
 
+.amount-negative {
+  color: var(--danger) !important;
+}
+
 .shop-item-actions {
   display: flex;
   gap: 2px;

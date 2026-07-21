@@ -179,7 +179,7 @@
         '<div class="list-item-name">' + escapeHtml(list.name) + "</div>" +
         '<div class="list-item-count">' + activeCount + " / " + totalCount + " 품목</div>" +
         "</div>" +
-        '<div class="list-item-amount">' + formatAmount(total) + "</div>" +
+        '<div class="list-item-amount' + (total < 0 ? " amount-negative" : "") + '">' + formatAmount(total) + "</div>" +
         '<div class="list-item-actions">' +
         '<button class="btn-small btn-edit-list" data-id="' + list.id + '">&#9998;</button>' +
         '<button class="btn-small btn-delete-list" data-id="' + list.id + '">&#10005;</button>' +
@@ -224,6 +224,7 @@
 
     var total = listTotal(list);
     totalAmountEl.textContent = formatAmount(total);
+    totalAmountEl.classList.toggle("amount-negative", total < 0);
 
     if (visibleItems.length === 0) {
       emptyItems.style.display = "block";
@@ -243,7 +244,7 @@
         '<div class="shop-item-name">' + escapeHtml(item.name) + "</div>" +
         '<div class="shop-item-date">' + formatDate(item.date) + "</div>" +
         "</div>" +
-        '<div class="shop-item-amount">' + formatAmount(item.amount) + "</div>" +
+        '<div class="shop-item-amount' + (Number(item.amount) < 0 ? " amount-negative" : "") + '">' + formatAmount(item.amount) + "</div>" +
         '<div class="shop-item-actions">' +
         '<button class="btn-small btn-edit-item" data-id="' + item.id + '">&#9998;</button>' +
         '<button class="btn-small btn-delete-item" data-id="' + item.id + '">&#10005;</button>' +
@@ -457,7 +458,7 @@
     if (isSaving) return;
     var name = itemNameInput.value.trim();
     var date = itemDateInput.value;
-    var amount = Math.max(0, Math.floor(Number(itemAmountInput.value) || 0));
+    var amount = Math.trunc(Number(itemAmountInput.value) || 0);
     if (!name) return;
     if (!isFinite(amount)) amount = 0;
     isSaving = true;
@@ -679,7 +680,7 @@
 
     var listName = params.get("list");
     var itemName = params.get("name");
-    var amount = Math.max(0, Math.floor(Number(params.get("amount")) || 0));
+    var amount = Math.trunc(Number(params.get("amount")) || 0);
     var date = params.get("date") || todayStr();
 
     if (!listName || !itemName) {
