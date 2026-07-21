@@ -125,6 +125,14 @@ cart/
 - 음수 금액·합계는 빨강(`--danger`)으로 표시 (`.amount-negative`)
 - Service Worker 캐시 v10 → v11
 
+### Phase 7: 캐시 무효화 3중 보강 (2026-07-21)
+- 배포 직후 모바일에서 옛 app.js가 계속 실행되는 문제 (음수 금액이 0으로 저장됨)
+- 원인: GitHub Pages `cache-control: max-age=600` — SW `cache.addAll`이 브라우저 HTTP 캐시의 옛 파일을 새 캐시 버전에 재수록
+- 조치 1: index.html 로컬 자산에 버전 쿼리(`?v=N`) — 옛 SW 캐시·HTTP 캐시 모두 우회
+- 조치 2: SW install 시 `new Request(url, { cache: "reload" })` — HTTP 캐시 우회 후 수록
+- 조치 3: SW fetch 시 `ignoreSearch: true` — 쿼리 유무 무관하게 캐시 매칭 (오프라인 유지)
+- Service Worker 캐시 v11 → v12 (이후 자산 변경 시 `?v=N`과 CACHE_NAME 함께 올릴 것)
+
 ---
 
 ## iOS Shortcuts 연동

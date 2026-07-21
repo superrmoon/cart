@@ -1,4 +1,4 @@
-var CACHE_NAME = "cart-v11";
+var CACHE_NAME = "cart-v12";
 var ASSETS = [
   "./index.html",
   "./style.css",
@@ -15,7 +15,11 @@ var ASSETS = [
 self.addEventListener("install", function (event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
-      return cache.addAll(ASSETS);
+      // cache: "reload" bypasses the browser HTTP cache (max-age=600 on
+      // GitHub Pages) so stale assets never get re-cached into a new version
+      return cache.addAll(ASSETS.map(function (u) {
+        return new Request(u, { cache: "reload" });
+      }));
     })
   );
   self.skipWaiting();
@@ -63,8 +67,9 @@ self.addEventListener("fetch", function (event) {
   }
 
   // Other assets: cache-first
+  // ignoreSearch: assets are cached without query but requested as ?v=N
   event.respondWith(
-    caches.match(event.request).then(function (cached) {
+    caches.match(event.request, { ignoreSearch: true }).then(function (cached) {
       return cached || fetch(event.request);
     })
   );
